@@ -85,7 +85,10 @@ export function EditableItem({ item, updateItem, deleteItem, deleteConfirm, isEd
 
         {/* HEADER */}
         {item.type === 'header' && (
-          <div className="flex items-center gap-2 text-xl font-extrabold text-blue-700 dark:text-blue-400 justify-center py-2">
+          <div
+            className="flex items-center gap-2 text-xl font-extrabold justify-center py-2 dark:text-blue-300"
+            style={{ color: '#002e5d' }}
+          >
             {isEditing ? (
               <>
                 <EditableText value={item.icon || ''} onChange={set('icon')} className="w-8 text-center" placeholder="⛪" />

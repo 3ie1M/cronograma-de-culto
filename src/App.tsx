@@ -35,15 +35,14 @@ function App() {
         const decoded = JSON.parse(Base64.decode(dataParam));
         if (Array.isArray(decoded)) {
           setItems(decoded);
-          setIsEditing(false); // View mode when opened from a shared link
-          return; // Don't touch localStorage — it belongs to the recipient
+          setIsEditing(false);
+          return;
         }
       } catch {
         console.error('Invalid data in URL');
       }
     }
 
-    // Only fall back to localStorage if there's no shared URL
     const saved = localStorage.getItem('cronograma-culto');
     if (saved) {
       try {
@@ -57,7 +56,6 @@ function App() {
     setItems(defaultSchedule.items);
   }, []);
 
-  // Save to localStorage (only when NOT opened from a shared link)
   useEffect(() => {
     if (items.length === 0) return;
     const params = new URLSearchParams(window.location.search);
@@ -66,7 +64,6 @@ function App() {
     }
   }, [items]);
 
-  // Handle dark mode — persist preference and apply class
   useEffect(() => {
     if (isDarkMode) {
       document.documentElement.classList.add('dark');
@@ -80,7 +77,6 @@ function App() {
     setItems(prev => prev.map(item => item.id === id ? { ...item, ...updates } : item));
   }, []);
 
-  // Show confirmation tooltip, then delete after 2s if not cancelled
   const handleDeleteItem = useCallback((id: string) => {
     if (deleteConfirm === id) {
       setItems(prev => prev.filter(item => item.id !== id));
@@ -94,11 +90,8 @@ function App() {
   const generateShareLink = () => {
     const encoded = Base64.encode(JSON.stringify(items));
     const url = new URL(window.location.href);
-    // Remove existing data param to build clean URL
     url.searchParams.set('data', encoded);
-
     navigator.clipboard.writeText(url.toString()).catch(() => {
-      // Fallback for browsers that deny clipboard access
       prompt('Copie o link abaixo:', url.toString());
     });
     setCopiedLink(true);
@@ -108,7 +101,7 @@ function App() {
   const handleExportPDF = async () => {
     setExportState('loading-pdf');
     try {
-      await exportToPDF('schedule-preview', 'cronograma');
+      await exportToPDF('schedule-preview', 'cronograma-culto');
     } finally {
       setExportState('idle');
     }
@@ -117,7 +110,7 @@ function App() {
   const handleExportPNG = async () => {
     setExportState('loading-png');
     try {
-      await exportToPNG('schedule-preview', 'cronograma');
+      await exportToPNG('schedule-preview', 'cronograma-culto');
     } finally {
       setExportState('idle');
     }
@@ -126,51 +119,73 @@ function App() {
   const loadTemplate = (key: string) => {
     const tpl = TEMPLATES[key];
     if (!tpl) return;
-    const newItems: ScheduleItem[] = tpl.items.map(item => ({
-      ...item,
-      id: crypto.randomUUID(),
-    }));
-    setItems(newItems);
+    setItems(tpl.items.map(item => ({ ...item, id: crypto.randomUUID() })));
     setShowTemplates(false);
   };
 
   const handleReset = () => {
-    if (window.confirm('Tem certeza que deseja iniciar um novo cronograma? O conteúdo atual será perdido.')) {
+    if (window.confirm('Iniciar um novo cronograma? O conteúdo atual será perdido.')) {
       loadTemplate('culto_sabado');
     }
   };
 
   return (
     <div
-      className="min-h-screen bg-slate-50 dark:bg-slate-950 transition-colors py-6 px-4 sm:px-6 lg:px-8"
+      className="min-h-screen bg-[#f4f7f6] dark:bg-slate-950 transition-colors"
       onClick={() => { setDeleteConfirm(null); setShowTemplates(false); }}
     >
-      {/* Header / Controls */}
-      <header className="max-w-4xl mx-auto mb-6 flex flex-col sm:flex-row items-center justify-between gap-4 bg-white dark:bg-slate-900 p-4 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 transition-colors">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/50 rounded-xl flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0">
-            <Edit3 size={20} />
-          </div>
-          <div>
-            <h1 className="text-xl font-bold text-slate-800 dark:text-white leading-tight">Cronograma de Culto</h1>
-            <p className="text-xs text-slate-500 dark:text-slate-400">Monte, edite e compartilhe</p>
-          </div>
+      {/* ── COQUEIRAL HEADER (matches escala-coqueiral identity) ── */}
+      <header
+        className="relative text-center text-white mb-6"
+        style={{
+          background: 'linear-gradient(135deg, #002e5d 0%, #004a99 100%)',
+          borderRadius: '0 0 30px 30px',
+          padding: '28px 16px 24px',
+        }}
+      >
+        {/* Controls — top right */}
+        <div className="absolute top-3 right-3 flex flex-col gap-2 items-center">
+          <button
+            onClick={(e) => { e.stopPropagation(); setIsDarkMode(!isDarkMode); }}
+            className="w-9 h-9 rounded-xl flex items-center justify-center text-white transition-all hover:-translate-y-0.5"
+            style={{ background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)', backdropFilter: 'blur(4px)' }}
+            title={isDarkMode ? 'Tema claro' : 'Tema escuro'}
+            aria-label="Alternar tema"
+          >
+            {isDarkMode ? <Sun size={16} /> : <Moon size={16} />}
+          </button>
         </div>
 
-        <nav className="flex flex-wrap items-center gap-2" aria-label="Controles do cronograma">
+        {/* Logo + title */}
+        <img
+          src="/cronograma-de-culto/logo-iasd.svg"
+          alt="IASD"
+          className="mx-auto mb-3"
+          style={{ width: 100, filter: 'brightness(0) invert(1)' }}
+        />
+        <h1 className="m-0 font-bold tracking-wide" style={{ fontSize: '1.15em', letterSpacing: 1 }}>
+          Departamento de Comunicação — CRONOGRAMA
+        </h1>
+        <p className="mt-1 text-xs font-light uppercase tracking-widest opacity-75">
+          Igreja Adventista do Sétimo Dia Coqueiral
+        </p>
+      </header>
 
-          {/* Templates dropdown */}
+      {/* ── TOOLBAR ── */}
+      <div className="max-w-3xl mx-auto px-4 mb-4">
+        <div className="flex flex-wrap items-center gap-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl px-4 py-3 shadow-sm transition-colors">
+
+          {/* Templates */}
           <div className="relative" onClick={e => e.stopPropagation()}>
             <button
               onClick={() => setShowTemplates(v => !v)}
-              className="flex items-center gap-1.5 px-3 py-2 bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors text-sm font-medium"
-              aria-label="Selecionar template"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg text-sm font-medium transition-colors"
               title="Usar um template pronto"
             >
-              Templates <ChevronDown size={14} className={`transition-transform ${showTemplates ? 'rotate-180' : ''}`} />
+              Templates <ChevronDown size={13} className={`transition-transform ${showTemplates ? 'rotate-180' : ''}`} />
             </button>
             {showTemplates && (
-              <div className="absolute right-0 top-full mt-1 w-52 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl shadow-lg z-50 overflow-hidden">
+              <div className="absolute left-0 top-full mt-1 w-56 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl z-50 overflow-hidden">
                 {Object.entries(TEMPLATES).map(([key, tpl]) => (
                   <button
                     key={key}
@@ -184,51 +199,48 @@ function App() {
             )}
           </div>
 
-          {/* Edit / Done toggle */}
+          <div className="flex-1" />
+
+          {/* Edit / Done */}
           <button
             onClick={() => setIsEditing(!isEditing)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-colors ${
+            className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg font-medium text-sm transition-colors ${
               isEditing
-                ? 'bg-blue-600 text-white hover:bg-blue-700'
+                ? 'text-white hover:opacity-90'
                 : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
             }`}
+            style={isEditing ? { background: '#002e5d' } : {}}
             aria-pressed={isEditing}
           >
-            {isEditing ? <><Check size={16} /> Concluir</> : <><Edit3 size={16} /> Editar</>}
+            {isEditing ? <><Check size={15} /> Concluir</> : <><Edit3 size={15} /> Editar</>}
           </button>
 
           {/* Export PDF */}
           <button
             onClick={handleExportPDF}
             disabled={exportState !== 'idle'}
-            className="flex items-center gap-1.5 p-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors disabled:opacity-50"
+            className="p-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors disabled:opacity-40"
             title="Exportar como PDF"
             aria-label="Exportar PDF"
           >
-            {exportState === 'loading-pdf'
-              ? <Loader2 size={20} className="animate-spin" />
-              : <Download size={20} />
-            }
+            {exportState === 'loading-pdf' ? <Loader2 size={20} className="animate-spin" /> : <Download size={20} />}
           </button>
 
           {/* Export PNG */}
           <button
             onClick={handleExportPNG}
             disabled={exportState !== 'idle'}
-            className="flex items-center gap-1.5 p-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors disabled:opacity-50"
-            title="Exportar como imagem (PNG)"
+            className="p-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors disabled:opacity-40"
+            title="Exportar como imagem PNG"
             aria-label="Exportar PNG"
           >
-            {exportState === 'loading-png'
-              ? <Loader2 size={20} className="animate-spin" />
-              : <ImageIcon size={20} />
-            }
+            {exportState === 'loading-png' ? <Loader2 size={20} className="animate-spin" /> : <ImageIcon size={20} />}
           </button>
 
-          {/* Share link */}
+          {/* Share */}
           <button
             onClick={generateShareLink}
-            className="flex items-center gap-1.5 p-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+            className="p-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
             title="Copiar link de compartilhamento"
             aria-label="Copiar link"
           >
@@ -244,36 +256,28 @@ function App() {
           >
             <RotateCcw size={20} />
           </button>
-
-          <div className="w-px h-6 bg-slate-200 dark:bg-slate-700 mx-0.5" role="separator" />
-
-          {/* Dark mode */}
-          <button
-            onClick={() => setIsDarkMode(!isDarkMode)}
-            className="p-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
-            title={isDarkMode ? 'Mudar para tema claro' : 'Mudar para tema escuro'}
-            aria-label="Alternar tema"
-          >
-            {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
-          </button>
-        </nav>
-      </header>
+        </div>
+      </div>
 
       {/* Feedback banners */}
       {copiedLink && (
-        <div className="max-w-4xl mx-auto mb-4 px-4 py-3 bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 rounded-xl text-sm text-green-700 dark:text-green-400 flex items-center gap-2 transition-all">
-          <Check size={16} /> Link copiado! Qualquer pessoa com o link pode visualizar este cronograma.
+        <div className="max-w-3xl mx-auto px-4 mb-4">
+          <div className="px-4 py-3 bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 rounded-xl text-sm text-green-700 dark:text-green-400 flex items-center gap-2">
+            <Check size={15} /> Link copiado! Qualquer pessoa com o link pode visualizar este cronograma.
+          </div>
         </div>
       )}
       {exportState !== 'idle' && (
-        <div className="max-w-4xl mx-auto mb-4 px-4 py-3 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-xl text-sm text-blue-700 dark:text-blue-400 flex items-center gap-2">
-          <Loader2 size={16} className="animate-spin" />
-          {exportState === 'loading-pdf' ? 'Gerando PDF…' : 'Gerando imagem PNG…'} Aguarde.
+        <div className="max-w-3xl mx-auto px-4 mb-4">
+          <div className="px-4 py-3 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-xl text-sm text-blue-700 dark:text-blue-400 flex items-center gap-2">
+            <Loader2 size={15} className="animate-spin" />
+            {exportState === 'loading-pdf' ? 'Gerando PDF…' : 'Gerando imagem PNG…'} Aguarde.
+          </div>
         </div>
       )}
 
-      {/* Schedule content (exported area) */}
-      <main id="schedule-preview" className="pb-12">
+      {/* Schedule (exported area) */}
+      <main id="schedule-preview" className="pb-16 px-4">
         <ScheduleEditor
           items={items}
           setItems={setItems}
