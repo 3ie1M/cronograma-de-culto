@@ -37,11 +37,16 @@ Um aplicativo web simples e responsivo para criar, editar, e exportar cronograma
 3. Acesse em seu navegador:
    `http://localhost:5173`
 
-## 🌍 Deploy na Vercel
+## 🌐 Demo Online (GitHub Pages)
 
-O aplicativo está pronto para a Vercel. 
+O projeto está publicado e disponível publicamente em:
+👉 **[https://3ie1m.github.io/cronograma-de-culto/](https://3ie1m.github.io/cronograma-de-culto/)**
+
+Qualquer atualização enviada para a branch `main` será automaticamente compilada e publicada via GitHub Actions!
+
+## 🌍 Deploy Alternativo (Vercel)
+
+Caso deseje publicar também na Vercel:
 1. Crie uma conta no [Vercel](https://vercel.com/)
-2. Importe o repositório diretamente do seu GitHub
-3. O Vercel fará todo o processo de build automaticamente, e você terá seu projeto no ar em poucos segundos!
-
-**Demo Online Sugerida**: Assim que feito o deploy, seu app estará vivo em uma URL como `https://cronograma-culto.vercel.app`.
+2. Importe o repositório diretamente do seu GitHub (`3ie1M/cronograma-de-culto`)
+3. O Vercel fará todo o processo de build automaticamente.
