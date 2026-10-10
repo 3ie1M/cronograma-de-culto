@@ -101,7 +101,7 @@ function App() {
   const handleExportPDF = async () => {
     setExportState('loading-pdf');
     try {
-      await exportToPDF('schedule-preview', 'cronograma-culto');
+      await exportToPDF('app-root', 'cronograma-culto');
     } finally {
       setExportState('idle');
     }
@@ -110,7 +110,7 @@ function App() {
   const handleExportPNG = async () => {
     setExportState('loading-png');
     try {
-      await exportToPNG('schedule-preview', 'cronograma-culto');
+      await exportToPNG('app-root', 'cronograma-culto');
     } finally {
       setExportState('idle');
     }
@@ -131,6 +131,7 @@ function App() {
 
   return (
     <div
+      id="app-root"
       className="min-h-screen bg-[#f4f7f6] dark:bg-slate-950 transition-colors"
       onClick={() => { setDeleteConfirm(null); setShowTemplates(false); }}
     >
@@ -144,7 +145,7 @@ function App() {
         }}
       >
         {/* Controls — top right */}
-        <div className="absolute top-3 right-3 flex flex-col gap-2 items-center">
+        <div className="absolute top-3 right-3 flex flex-col gap-2 items-center" data-no-export="true">
           <button
             onClick={(e) => { e.stopPropagation(); setIsDarkMode(!isDarkMode); }}
             className="w-9 h-9 rounded-xl flex items-center justify-center text-white transition-all hover:-translate-y-0.5"
@@ -172,7 +173,7 @@ function App() {
       </header>
 
       {/* ── TOOLBAR ── */}
-      <div className="max-w-3xl mx-auto px-4 mb-4">
+      <div className="max-w-3xl mx-auto px-4 mb-4" data-no-export="true">
         <div className="flex flex-wrap items-center gap-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl px-4 py-3 shadow-sm transition-colors">
 
           {/* Templates */}
@@ -261,14 +262,14 @@ function App() {
 
       {/* Feedback banners */}
       {copiedLink && (
-        <div className="max-w-3xl mx-auto px-4 mb-4">
+        <div className="max-w-3xl mx-auto px-4 mb-4" data-no-export="true">
           <div className="px-4 py-3 bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 rounded-xl text-sm text-green-700 dark:text-green-400 flex items-center gap-2">
             <Check size={15} /> Link copiado! Qualquer pessoa com o link pode visualizar este cronograma.
           </div>
         </div>
       )}
       {exportState !== 'idle' && (
-        <div className="max-w-3xl mx-auto px-4 mb-4">
+        <div className="max-w-3xl mx-auto px-4 mb-4" data-no-export="true">
           <div className="px-4 py-3 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-xl text-sm text-blue-700 dark:text-blue-400 flex items-center gap-2">
             <Loader2 size={15} className="animate-spin" />
             {exportState === 'loading-pdf' ? 'Gerando PDF…' : 'Gerando imagem PNG…'} Aguarde.
