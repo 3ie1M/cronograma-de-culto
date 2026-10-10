@@ -3,7 +3,6 @@ import { jsPDF } from 'jspdf';
 
 /** 
  * Helper to clone an element while preserving the state of inputs, textareas, and selects.
- * cloneNode(true) alone does not copy the .value property of these elements.
  */
 function cloneWithInputs(original: HTMLElement): HTMLElement {
   const clone = original.cloneNode(true) as HTMLElement;
@@ -42,9 +41,18 @@ function createExportContainer(elementId: string): HTMLElement | null {
   printContainer.style.top = '-9999px';
   printContainer.style.left = '0';
 
+  // FIX 1: Tailwind v4 usa variáveis globais no :root. O html-to-image perde o :root original.
+  // Precisamos copiar todas as variáveis CSS do html/body para o nosso container.
+  const rootStyles = getComputedStyle(document.documentElement);
+  for (let i = 0; i < rootStyles.length; i++) {
+    const propName = rootStyles[i];
+    if (propName.startsWith('--')) {
+      printContainer.style.setProperty(propName, rootStyles.getPropertyValue(propName));
+    }
+  }
+
   if (headerElement) {
     const headerClone = cloneWithInputs(headerElement);
-    // Remove the dark mode toggle button from the header clone if present
     const themeToggleContainer = headerClone.querySelector('.absolute.top-4.right-4');
     if (themeToggleContainer) {
       themeToggleContainer.remove();
@@ -78,6 +86,11 @@ async function getExportImage(elementId: string, format: 'png' | 'jpeg'): Promis
       backgroundColor: '#ffffff',
       pixelRatio: 2, // High resolution
     };
+    
+    // FIX 2: html-to-image tem um bug conhecido em que a primeira renderização
+    // pode sair em branco porque as fontes/imagens externas ainda não foram
+    // carregadas no SVG interno. A solução clássica é chamar duas vezes.
+    await toPng(printContainer, options);
     
     let dataUrl = '';
     if (format === 'jpeg') {
@@ -114,13 +127,11 @@ export const exportToPNG = async (elementId: string, filename: string): Promise<
 
 export const exportToPDF = async (elementId: string, filename: string): Promise<void> => {
   try {
-    // Usamos PNG ou JPEG internamente para o jsPDF
     const dataUrl = await getExportImage(elementId, 'jpeg');
     if (!dataUrl) return;
     
     const pdf = new jsPDF('p', 'mm', 'a4');
 
-    // Create a temporary image to get dimensions
     const img = new Image();
     img.src = dataUrl;
     await new Promise((resolve) => { img.onload = resolve; });
