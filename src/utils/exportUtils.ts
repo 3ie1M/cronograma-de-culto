@@ -30,6 +30,7 @@ async function captureElementCloned(elementId: string): Promise<HTMLCanvasElemen
   return new Promise((resolve) => {
     const original = document.getElementById(elementId);
     if (!original) {
+      alert("Elemento não encontrado para captura.");
       resolve(null);
       return;
     }
@@ -38,13 +39,12 @@ async function captureElementCloned(elementId: string): Promise<HTMLCanvasElemen
     document.documentElement.classList.remove('dark');
 
     const printContainer = document.createElement('div');
-    printContainer.style.position = 'fixed'; // fixed and top 0 ensures it's in the viewport
-    printContainer.style.top = '0';
+    printContainer.style.position = 'absolute'; // Volta ao original do escala-coqueiral
+    printContainer.style.top = '-9999px';
     printContainer.style.left = '0';
     printContainer.style.width = '800px'; // Largura fixa para garantir layout
     printContainer.style.background = '#ffffff';
     printContainer.style.padding = '20px';
-    printContainer.style.zIndex = '-9999'; // Hides it behind other elements
 
     // To apply data-exporting to hide UI chrome
     original.setAttribute('data-exporting', 'true');
@@ -66,6 +66,7 @@ async function captureElementCloned(elementId: string): Promise<HTMLCanvasElemen
         resolve(canvas);
       }).catch((error) => {
         console.error('Erro no html2canvas:', error);
+        alert('Erro ao gerar imagem com html2canvas: ' + error);
         document.body.removeChild(printContainer);
         if (wasDark) document.documentElement.classList.add('dark');
         resolve(null);
@@ -75,28 +76,39 @@ async function captureElementCloned(elementId: string): Promise<HTMLCanvasElemen
 }
 
 export const exportToPNG = async (elementId: string, filename: string): Promise<void> => {
-  const canvas = await captureElementCloned(elementId);
-  if (!canvas) return;
+  try {
+    const canvas = await captureElementCloned(elementId);
+    if (!canvas) return;
 
-  const image = canvas.toDataURL('image/png');
-  const link = document.createElement('a');
-  link.href = image;
-  link.download = `${filename}.png`;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
+    const image = canvas.toDataURL('image/png');
+    const link = document.createElement('a');
+    link.href = image;
+    link.download = `${filename}.png`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  } catch (err: any) {
+    alert('Erro ao gerar PNG: ' + err.message);
+  }
 };
 
 export const exportToPDF = async (elementId: string, filename: string): Promise<void> => {
-  const canvas = await captureElementCloned(elementId);
-  if (!canvas) return;
+  try {
+    const canvas = await captureElementCloned(elementId);
+    if (!canvas) return;
 
-  const imgData = canvas.toDataURL('image/jpeg', 0.95);
-  const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    const imgData = canvas.toDataURL('image/png'); // Volta para PNG como no escala-coqueiral
+    
+    // Volta para a sintaxe antiga de inicialização
+    const pdf = new jsPDF('p', 'mm', 'a4');
 
-  const imgWidth = 190;
-  const imgHeight = (canvas.height * imgWidth) / canvas.width;
+    const imgWidth = 190;
+    const imgHeight = (canvas.height * imgWidth) / canvas.width;
 
-  pdf.addImage(imgData, 'JPEG', 10, 10, imgWidth, imgHeight);
-  pdf.save(`${filename}.pdf`);
+    pdf.addImage(imgData, 'PNG', 10, 10, imgWidth, imgHeight);
+    pdf.save(`${filename}.pdf`);
+  } catch (err: any) {
+    console.error(err);
+    alert('Erro na geração do PDF: ' + err.message);
+  }
 };
