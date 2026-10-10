@@ -1,4 +1,4 @@
-import html2canvas from 'html2canvas';
+import { toPng, toJpeg } from 'html-to-image';
 import { jsPDF } from 'jspdf';
 
 /** 
@@ -25,64 +25,84 @@ function cloneWithInputs(original: HTMLElement): HTMLElement {
   return clone;
 }
 
-/** Capture an element by cloning it into a fixed-width container to ensure layout stability (like escala-coqueiral). */
-async function captureElementCloned(elementId: string): Promise<HTMLCanvasElement | null> {
-  return new Promise((resolve) => {
-    const original = document.getElementById(elementId);
-    if (!original) {
-      alert("Elemento não encontrado para captura.");
-      resolve(null);
-      return;
+/**
+ * Clones the header and the target element into a temporary container for exporting.
+ */
+function createExportContainer(elementId: string): HTMLElement | null {
+  const targetElement = document.getElementById(elementId);
+  if (!targetElement) return null;
+
+  const headerElement = document.querySelector('header');
+
+  const printContainer = document.createElement('div');
+  printContainer.style.width = '800px';
+  printContainer.style.background = '#ffffff';
+  printContainer.style.padding = '20px';
+  printContainer.style.position = 'absolute';
+  printContainer.style.top = '-9999px';
+  printContainer.style.left = '0';
+
+  if (headerElement) {
+    const headerClone = cloneWithInputs(headerElement);
+    // Remove the dark mode toggle button from the header clone if present
+    const themeToggleContainer = headerClone.querySelector('.absolute.top-4.right-4');
+    if (themeToggleContainer) {
+      themeToggleContainer.remove();
     }
+    printContainer.appendChild(headerClone);
+  }
 
-    const wasDark = document.documentElement.classList.contains('dark');
-    document.documentElement.classList.remove('dark');
+  const targetClone = cloneWithInputs(targetElement);
+  targetClone.setAttribute('data-exporting', 'true');
+  printContainer.appendChild(targetClone);
 
-    const printContainer = document.createElement('div');
-    printContainer.style.position = 'absolute'; // Volta ao original do escala-coqueiral
-    printContainer.style.top = '-9999px';
-    printContainer.style.left = '0';
-    printContainer.style.width = '800px'; // Largura fixa para garantir layout
-    printContainer.style.background = '#ffffff';
-    printContainer.style.padding = '20px';
+  document.body.appendChild(printContainer);
+  return printContainer;
+}
 
-    // To apply data-exporting to hide UI chrome
-    original.setAttribute('data-exporting', 'true');
-    const clone = cloneWithInputs(original);
-    original.removeAttribute('data-exporting');
+/** 
+ * Gets the export image data URL natively supporting modern CSS (like Tailwind v4 oklch).
+ */
+async function getExportImage(elementId: string, format: 'png' | 'jpeg'): Promise<string | null> {
+  const printContainer = createExportContainer(elementId);
+  if (!printContainer) {
+    alert("Elemento não encontrado para captura.");
+    return null;
+  }
 
-    printContainer.appendChild(clone);
-    document.body.appendChild(printContainer);
+  const wasDark = document.documentElement.classList.contains('dark');
+  if (wasDark) document.documentElement.classList.remove('dark');
 
-    // Aguarda renderização
-    setTimeout(() => {
-      html2canvas(printContainer, {
-        scale: 2,
-        useCORS: true,
-        backgroundColor: '#ffffff' // Garante fundo branco
-      }).then((canvas) => {
-        document.body.removeChild(printContainer);
-        if (wasDark) document.documentElement.classList.add('dark');
-        resolve(canvas);
-      }).catch((error) => {
-        console.error('Erro no html2canvas:', error);
-        alert('Erro ao gerar imagem com html2canvas: ' + error);
-        document.body.removeChild(printContainer);
-        if (wasDark) document.documentElement.classList.add('dark');
-        resolve(null);
-      });
-    }, 150);
-  });
+  try {
+    const options = {
+      backgroundColor: '#ffffff',
+      pixelRatio: 2, // High resolution
+    };
+    
+    let dataUrl = '';
+    if (format === 'jpeg') {
+      dataUrl = await toJpeg(printContainer, { ...options, quality: 0.95 });
+    } else {
+      dataUrl = await toPng(printContainer, options);
+    }
+    return dataUrl;
+  } catch (error: any) {
+    console.error('Erro no html-to-image:', error);
+    alert('Erro ao gerar imagem: ' + (error.message || error.toString()));
+    return null;
+  } finally {
+    document.body.removeChild(printContainer);
+    if (wasDark) document.documentElement.classList.add('dark');
+  }
 }
 
 export const exportToPNG = async (elementId: string, filename: string): Promise<void> => {
   try {
-    const canvas = await captureElementCloned(elementId);
-    if (!canvas) return;
+    const dataUrl = await getExportImage(elementId, 'png');
+    if (!dataUrl) return;
 
-    const image = canvas.toDataURL('image/png');
     const link = document.createElement('a');
-    link.href = image;
+    link.href = dataUrl;
     link.download = `${filename}.png`;
     document.body.appendChild(link);
     link.click();
@@ -94,18 +114,21 @@ export const exportToPNG = async (elementId: string, filename: string): Promise<
 
 export const exportToPDF = async (elementId: string, filename: string): Promise<void> => {
   try {
-    const canvas = await captureElementCloned(elementId);
-    if (!canvas) return;
-
-    const imgData = canvas.toDataURL('image/png'); // Volta para PNG como no escala-coqueiral
+    // Usamos PNG ou JPEG internamente para o jsPDF
+    const dataUrl = await getExportImage(elementId, 'jpeg');
+    if (!dataUrl) return;
     
-    // Volta para a sintaxe antiga de inicialização
     const pdf = new jsPDF('p', 'mm', 'a4');
 
-    const imgWidth = 190;
-    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+    // Create a temporary image to get dimensions
+    const img = new Image();
+    img.src = dataUrl;
+    await new Promise((resolve) => { img.onload = resolve; });
 
-    pdf.addImage(imgData, 'PNG', 10, 10, imgWidth, imgHeight);
+    const imgWidth = 190; // mm
+    const imgHeight = (img.height * imgWidth) / img.width;
+
+    pdf.addImage(dataUrl, 'JPEG', 10, 10, imgWidth, imgHeight);
     pdf.save(`${filename}.pdf`);
   } catch (err: any) {
     console.error(err);
